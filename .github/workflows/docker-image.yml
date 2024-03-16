@@ -26,4 +26,4 @@ jobs:
       - name: Log in to Docker Hub
         run: docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_PASSWORD }}
       - name: Push Docker image
-        run: docker push dev/twitter:v4
+        run: docker push adriantran2809/twitter:v4
