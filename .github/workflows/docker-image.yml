@@ -22,4 +22,4 @@ jobs:
       - name: "Create env file"
         run: echo "${{ secrets.TWITTER_ENV_PRODUCTION }}" > .env.production
       - name: "Build Docker image"
-        run: docker build -f ../Dockerfile -t dev/twitter:v4 .
+        run: docker build -t dev/twitter:v4 -f DockerFile .
