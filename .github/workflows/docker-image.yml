@@ -17,9 +17,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: "Check working directory"
+        run: pwd
       - name: "Create env file"
         run: echo "${{ secrets.TWITTER_ENV_PRODUCTION }}" > .env.production
-      - name: Check .env.production file
-        run: cat .env.production
-      - name: Build the Docker Image
-        run: docker build --progress=plain -t dev/twitter:v4 .
