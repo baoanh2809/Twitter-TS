@@ -1,14 +1,18 @@
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-import { config } from 'dotenv'
 import fs from 'fs'
+import { Response } from 'express'
 import path from 'path'
-config()
+import { envConfig } from '@/constants/config'
+import HTTP from '@/constants/httpStatus'
+
+console.log(envConfig.amzSecretAccessKey)
+
 const s3 = new S3({
-  region: process.env.AWS_REGION,
+  region: envConfig.amzRegion,
   credentials: {
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID as string
+    secretAccessKey: envConfig.amzSecretAccessKey,
+    accessKeyId: envConfig.amzAccessKeyId
   }
 })
 // const file = fs.readFileSync(path.resolve('uploads/c14ea6547180a71f6ce5ddc00.jpg'))
@@ -24,7 +28,7 @@ export const uploadFileToS3 = ({
   const parralUpload3 = new Upload({
     client: s3,
     params: {
-      Bucket: 'twitter-ap-southeast-1-clone',
+      Bucket: envConfig.bucketName,
       Key: filename,
       Body: fs.readFileSync(filepath),
       ContentType: contentType
@@ -35,4 +39,16 @@ export const uploadFileToS3 = ({
     leavePartsOnError: false
   })
   return parralUpload3.done()
+}
+
+export const sendFileFromS3 = async (res: Response, filepath: string) => {
+  try {
+    const data = await s3.getObject({
+      Bucket: envConfig.bucketName,
+      Key: filepath
+    })
+    ;(data.Body as any).pipe(res)
+  } catch (err) {
+    res.status(HTTP.NOT_FOUND).send('Not founf')
+  }
 }

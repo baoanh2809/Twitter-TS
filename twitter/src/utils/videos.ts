@@ -1,72 +1,22 @@
-import * as path from 'path'
-import { exec } from 'child_process'
+import { promisify } from 'util'
+import { exec as execCallback } from 'child_process'
+import path from 'path'
+
+const execAsync = promisify(execCallback)
 
 const MAXIMUM_BITRATE_720P = 5 * 10 ** 6 // 5Mbps
 const MAXIMUM_BITRATE_1080P = 8 * 10 ** 6 // 8Mbps
 const MAXIMUM_BITRATE_1440P = 16 * 10 ** 6 // 16Mbps
 
-export const checkVideoHasAudio = async (filePath: string): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    exec(
-      `ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of default=nw=1:nk=1 "${filePath}"`,
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(error)
-        } else {
-          resolve(stdout.trim() === 'audio')
-        }
-      }
-    )
-  })
-}
-
-const getBitrate = async (filePath: string): Promise<number> => {
-  return new Promise((resolve, reject) => {
-    exec(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=bit_rate -of default=nw=1:nk=1 "${filePath}"`,
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(error)
-        } else {
-          resolve(Number(stdout.trim()))
-        }
-      }
-    )
-  })
-}
-
-const getResolution = async (filePath: string): Promise<{ width: number; height: number }> => {
-  return new Promise((resolve, reject) => {
-    exec(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${filePath}"`,
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(error)
-        } else {
-          const resolution = stdout.trim().split('x')
-          const [width, height] = resolution
-          resolve({
-            width: Number(width),
-            height: Number(height)
-          })
-        }
-      }
-    )
-  })
-}
-
-const getWidth = (height: number, resolution: { width: number; height: number }): number => {
-  const width = Math.round((height * resolution.width) / resolution.height)
-  return width % 2 === 0 ? width : width + 1
+type Resolution = {
+  width: number
+  height: number
 }
 
 type EncodeByResolution = {
   inputPath: string
   isHasAudio: boolean
-  resolution: {
-    width: number
-    height: number
-  }
+  resolution: Resolution
   outputSegmentPath: string
   outputPath: string
   bitrate: {
@@ -77,6 +27,52 @@ type EncodeByResolution = {
   }
 }
 
+const checkVideoHasAudio = async (filePath: string): Promise<boolean> => {
+  const { stdout } = await execAsync(
+    `ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of default=nw=1:nk=1 "${filePath}"`
+  )
+  return stdout.trim() === 'audio'
+}
+
+const getBitrate = async (filePath: string): Promise<number> => {
+  const { stdout } = await execAsync(
+    `ffprobe -v error -select_streams v:0 -show_entries stream=bit_rate -of default=nw=1:nk=1 "${filePath}"`
+  )
+  return Number(stdout.trim())
+}
+
+const getResolution = async (filePath: string): Promise<Resolution> => {
+  const { stdout } = await execAsync(
+    `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${filePath}"`
+  )
+  const resolution = stdout.trim().split('x')
+  const [width, height] = resolution
+  return {
+    width: Number(width),
+    height: Number(height)
+  }
+}
+
+const getWidth = (height: number, resolution: Resolution): number => {
+  const width = Math.round((height * resolution.width) / resolution.height)
+  return width % 2 === 0 ? width : width + 1
+}
+
+const encodeVideo = async (args: string[]) => {
+  const command = `ffmpeg ${args.join(' ')}`
+
+  return new Promise((resolve, reject) => {
+    execCallback(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`stderr: ${stderr}`)
+        reject(new Error('FFmpeg encountered an error'))
+      } else {
+        resolve(true)
+      }
+    })
+  })
+}
+
 const encodeMax720 = async ({
   bitrate,
   inputPath,
@@ -84,64 +80,62 @@ const encodeMax720 = async ({
   outputPath,
   outputSegmentPath,
   resolution
-}: EncodeByResolution): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    const args = [
-      '-y',
-      '-i',
-      inputPath,
-      '-preset',
-      'veryslow',
-      '-g',
-      '48',
-      '-crf',
-      '17',
-      '-sc_threshold',
-      '0',
-      '-map',
-      '0:0'
-    ]
-    if (isHasAudio) {
-      args.push('-map', '0:1')
-    }
-    args.push(
-      '-s:v:0',
-      `${getWidth(720, resolution)}x720`,
-      '-c:v:0',
-      'libx264',
-      '-b:v:0',
-      `${bitrate[720]}`,
-      '-c:a',
-      'copy',
-      '-var_stream_map'
-    )
-    if (isHasAudio) {
-      args.push('v:0,a:0')
-    } else {
-      args.push('v:0')
-    }
-    args.push(
-      '-master_pl_name',
-      'master.m3u8',
-      '-f',
-      'hls',
-      '-hls_time',
-      '6',
-      '-hls_list_size',
-      '0',
-      '-hls_segment_filename',
-      outputSegmentPath,
-      outputPath
-    )
-
-    exec(`ffmpeg ${args.join(' ')}`, (error, stdout, stderr) => {
-      if (error) {
-        reject(error)
-      } else {
-        resolve(true)
-      }
-    })
-  })
+}: EncodeByResolution) => {
+  const args = [
+    '-y',
+    '-i',
+    inputPath,
+    '-preset',
+    'veryslow',
+    '-g',
+    '48',
+    '-crf',
+    '17',
+    '-sc_threshold',
+    '0',
+    '-map',
+    '0:0'
+  ]
+  if (isHasAudio) {
+    args.push('-map', '0:1')
+  }
+  args.push(
+    '-s:v:0',
+    `${getWidth(720, resolution)}x720`,
+    '-c:v:0',
+    'libx264',
+    '-b:v:0',
+    `${bitrate[720]}`,
+    '-c:a',
+    'copy',
+    '-var_stream_map'
+  )
+  if (isHasAudio) {
+    args.push('v:0,a:0')
+  } else {
+    args.push('v:0')
+  }
+  args.push(
+    '-master_pl_name',
+    'master.m3u8',
+    '-f',
+    'hls',
+    '-hls_time',
+    '6',
+    '-hls_list_size',
+    '0',
+    '-hls_segment_filename',
+    outputSegmentPath,
+    outputPath
+  )
+  console.log(args)
+  try {
+    await encodeVideo(args)
+    console.log('Video encoding successful')
+  } catch (error) {
+    console.error(error)
+  }
+  return true
 }
 
 const encodeMax1080 = async ({
@@ -151,58 +145,62 @@ const encodeMax1080 = async ({
   outputPath,
   outputSegmentPath,
   resolution
-}: EncodeByResolution): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    const args = ['-y', '-i', inputPath, '-preset', 'veryslow', '-g', '48', '-crf', '17', '-sc_threshold', '0']
-    if (isHasAudio) {
-      args.push('-map', '0:0', '-map', '0:1', '-map', '0:0', '-map', '0:1')
-    } else {
-      args.push('-map', '0:0', '-map', '0:0')
-    }
-    args.push(
-      '-s:v:0',
-      `${getWidth(720, resolution)}x720`,
-      '-c:v:0',
-      'libx264',
-      '-b:v:0',
-      `${bitrate[720]}`,
-      '-s:v:1',
-      `${getWidth(1080, resolution)}x1080`,
-      '-c:v:1',
-      'libx264',
-      '-b:v:1',
-      `${bitrate[1080]}`,
-      '-c:a',
-      'copy',
-      '-var_stream_map'
-    )
-    if (isHasAudio) {
-      args.push('v:0,a:0 v:1,a:1')
-    } else {
-      args.push('v:0 v:1')
-    }
-    args.push(
-      '-master_pl_name',
-      'master.m3u8',
-      '-f',
-      'hls',
-      '-hls_time',
-      '6',
-      '-hls_list_size',
-      '0',
-      '-hls_segment_filename',
-      outputSegmentPath,
-      outputPath
-    )
-
-    exec(`ffmpeg ${args.join(' ')}`, (error, stdout, stderr) => {
-      if (error) {
-        reject(error)
-      } else {
-        resolve(true)
-      }
-    })
-  })
+}: EncodeByResolution) => {
+  const args = [
+    '-y',
+    '-i',
+    inputPath,
+    '-preset',
+    'veryslow',
+    '-g',
+    '48',
+    '-crf',
+    '17',
+    '-sc_threshold',
+    '0',
+    '-map',
+    '0:0'
+  ]
+  if (isHasAudio) {
+    args.push('-map', '0:1', '-map', '0:0', '-map', '0:1')
+  }
+  args.push(
+    '-s:v:0',
+    `${getWidth(720, resolution)}x720`,
+    '-c:v:0',
+    'libx264',
+    '-b:v:0',
+    `${bitrate[720]}`,
+    '-s:v:1',
+    `${getWidth(1080, resolution)}x1080`,
+    '-c:v:1',
+    'libx264',
+    '-b:v:1',
+    `${bitrate[1080]}`,
+    '-c:a',
+    'copy',
+    '-var_stream_map "v:0,a:0 v:1,a:1"'
+  )
+  args.push(
+    '-master_pl_name',
+    'master.m3u8',
+    '-f',
+    'hls',
+    '-hls_time',
+    '6',
+    '-hls_list_size',
+    '0',
+    '-hls_segment_filename',
+    outputSegmentPath,
+    outputPath
+  )
+  try {
+    await encodeVideo(args)
+    console.log('Video encoding successful')
+  } catch (error) {
+    console.error(error)
+  }
+  return true
 }
 
 const encodeMax1440 = async ({
@@ -212,57 +210,68 @@ const encodeMax1440 = async ({
   outputPath,
   outputSegmentPath,
   resolution
-}: EncodeByResolution): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    const args = ['-y', '-i', inputPath, '-preset', 'veryslow', '-g', '48', '-crf', '17', '-sc_threshold', '0']
-    if (isHasAudio) {
-      args.push('-map', '0:0', '-map', '0:1', '-map', '0:0', '-map', '0:1', '-map', '0:0', '-map', '0:1')
-    } else {
-      args.push('-map', '0:0', '-map', '0:0', '-map', '0:0')
-    }
-    args.push(
-      '-s:v:0',
-      `${getWidth(720, resolution)}x720`,
-      '-c:v:0',
-      'libx264',
-      '-b:v:0',
-      `${bitrate[720]}`,
-      '-s:v:1',
-      `${getWidth(1080, resolution)}x1080`,
-      '-c:v:1',
-      'libx264',
-      '-b:v:1',
-      `${bitrate[1080]}`,
-      '-s:v:2',
-      `${getWidth(1440, resolution)}x1440`,
-      '-c:v:2',
-      'libx264',
-      '-b:v:2',
-      `${bitrate[1440]}`,
-      '-c:a',
-      'copy',
-      '-var_stream_map',
-      '-master_pl_name',
-      'master.m3u8',
-      '-f',
-      'hls',
-      '-hls_time',
-      '6',
-      '-hls_list_size',
-      '0',
-      '-hls_segment_filename',
-      outputSegmentPath,
-      outputPath
-    )
-
-    exec(`ffmpeg ${args.join(' ')}`, (error, stdout, stderr) => {
-      if (error) {
-        reject(error)
-      } else {
-        resolve(true)
-      }
-    })
-  })
+}: EncodeByResolution) => {
+  const args = [
+    '-y',
+    '-i',
+    inputPath,
+    '-preset',
+    'veryslow',
+    '-g',
+    '48',
+    '-crf',
+    '17',
+    '-sc_threshold',
+    '0',
+    '-map',
+    '0:0'
+  ]
+  if (isHasAudio) {
+    args.push('-map', '0:1', '-map', '0:0', '-map', '0:1', '-map', '0:0', '-map', '0:1')
+  }
+  args.push(
+    '-s:v:0',
+    `${getWidth(720, resolution)}x720`,
+    '-c:v:0',
+    'libx264',
+    '-b:v:0',
+    `${bitrate[720]}`,
+    '-s:v:1',
+    `${getWidth(1080, resolution)}x1080`,
+    '-c:v:1',
+    'libx264',
+    '-b:v:1',
+    `${bitrate[1080]}`,
+    '-s:v:2',
+    `${getWidth(1440, resolution)}x1440`,
+    '-c:v:2',
+    'libx264',
+    '-b:v:2',
+    `${bitrate[1440]}`,
+    '-c:a',
+    'copy',
+    '-var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2"'
+  )
+  args.push(
+    '-master_pl_name',
+    'master.m3u8',
+    '-f',
+    'hls',
+    '-hls_time',
+    '6',
+    '-hls_list_size',
+    '0',
+    '-hls_segment_filename',
+    outputSegmentPath,
+    outputPath
+  )
+  try {
+    await encodeVideo(args)
+    console.log('Video encoding successful')
+  } catch (error) {
+    console.error(error)
+  }
+  return true
 }
 
 const encodeMaxOriginal = async ({
@@ -272,60 +281,71 @@ const encodeMaxOriginal = async ({
   outputPath,
   outputSegmentPath,
   resolution
-}: EncodeByResolution): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    const args = ['-y', '-i', inputPath, '-preset', 'veryslow', '-g', '48', '-crf', '17', '-sc_threshold', '0']
-    if (isHasAudio) {
-      args.push('-map', '0:0', '-map', '0:1', '-map', '0:0', '-map', '0:1', '-map', '0:0', '-map', '0:1')
-    } else {
-      args.push('-map', '0:0', '-map', '0:0', '-map', '0:0')
-    }
-    args.push(
-      '-s:v:0',
-      `${getWidth(720, resolution)}x720`,
-      '-c:v:0',
-      'libx264',
-      '-b:v:0',
-      `${bitrate[720]}`,
-      '-s:v:1',
-      `${getWidth(1080, resolution)}x1080`,
-      '-c:v:1',
-      'libx264',
-      '-b:v:1',
-      `${bitrate[1080]}`,
-      '-s:v:2',
-      `${resolution.width}x${resolution.height}`,
-      '-c:v:2',
-      'libx264',
-      '-b:v:2',
-      `${bitrate.original}`,
-      '-c:a',
-      'copy',
-      '-var_stream_map',
-      '-master_pl_name',
-      'master.m3u8',
-      '-f',
-      'hls',
-      '-hls_time',
-      '6',
-      '-hls_list_size',
-      '0',
-      '-hls_segment_filename',
-      outputSegmentPath,
-      outputPath
-    )
-
-    exec(`ffmpeg ${args.join(' ')}`, (error, stdout, stderr) => {
-      if (error) {
-        reject(error)
-      } else {
-        resolve(true)
-      }
-    })
-  })
+}: EncodeByResolution) => {
+  const args = [
+    '-y',
+    '-i',
+    inputPath,
+    '-preset',
+    'veryslow',
+    '-g',
+    '48',
+    '-crf',
+    '17',
+    '-sc_threshold',
+    '0',
+    '-map',
+    '0:0'
+  ]
+  if (isHasAudio) {
+    args.push('-map', '0:0', '-map', '0:1', '-map', '0:0', '-map', '0:1', '-map', '0:0', '-map', '0:1')
+  }
+  args.push(
+    '-s:v:0',
+    `${getWidth(720, resolution)}x720`,
+    '-c:v:0',
+    'libx264',
+    '-b:v:0',
+    `${bitrate[720]}`,
+    '-s:v:1',
+    `${getWidth(1080, resolution)}x1080`,
+    '-c:v:1',
+    'libx264',
+    '-b:v:1',
+    `${bitrate[1080]}`,
+    '-s:v:2',
+    `${resolution.width}x${resolution.height}`,
+    '-c:v:2',
+    'libx264',
+    '-b:v:2',
+    `${bitrate.original}`,
+    '-c:a',
+    'copy',
+    '-var_stream_map "v:0,a:0 v:1,a:1 v:2,a:2"'
+  )
+  args.push(
+    '-master_pl_name',
+    'master.m3u8',
+    '-f',
+    'hls',
+    '-hls_time',
+    '6',
+    '-hls_list_size',
+    '0',
+    '-hls_segment_filename',
+    outputSegmentPath,
+    outputPath
+  )
+  try {
+    await encodeVideo(args)
+    console.log('Video encoding successful')
+  } catch (error) {
+    console.error(error)
+  }
+  return true
 }
 
-export const encodeHLSWithMultipleVideoStreams = async (inputPath: string): Promise<boolean> => {
+const encodeHLSWithMultipleVideoStreams = async (inputPath: string) => {
   const [bitrate, resolution] = await Promise.all([getBitrate(inputPath), getResolution(inputPath)])
   const parent_folder = path.join(inputPath, '..')
   const outputSegmentPath = path.join(parent_folder, 'v%v/fileSequence%d.ts')
@@ -358,4 +378,14 @@ export const encodeHLSWithMultipleVideoStreams = async (inputPath: string): Prom
     resolution
   })
   return true
+}
+
+export {
+  checkVideoHasAudio,
+  getBitrate,
+  getResolution,
+  getWidth,
+  encodeVideo,
+  encodeMax720,
+  encodeHLSWithMultipleVideoStreams
 }

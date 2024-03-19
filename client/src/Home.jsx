@@ -2,6 +2,13 @@
 import { Link } from "react-router-dom";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
+import { MediaPlayer, MediaProvider } from "@vidstack/react";
+import "@vidstack/react/player/styles/default/theme.css";
+import "@vidstack/react/player/styles/default/layouts/video.css";
+import {
+  defaultLayoutIcons,
+  DefaultVideoLayout,
+} from "@vidstack/react/player/layouts/default";
 import "./App.css";
 
 const getGoogleAuthUrl = () => {
@@ -44,12 +51,28 @@ export default function Home() {
           <img src={reactLogo} className="logo react" alt="React logo" />
         </div>
       </div>
-      <video controls width={500}>
+      <h2>Video Streaming</h2>
+      {/* <video controls width={500}>
         <source
           src="http://localhost:4000/api/static/video-stream/4f654fc94b044973e5c40f800.mp4"
           type="video/mp4"
         />
-      </video>
+      </video> */}
+      <h2>HLS Streaming</h2>
+      <MediaPlayer
+        title="Sprite Fight"
+        src="http://localhost:4000/api/static/video-hls/3OT6OD4Mf3h3NFfgOVsuF/master.m3u8"
+        type="video/mp4"
+        aspectRatio="16:9"
+        crossOrigin=""
+      >
+        <MediaProvider />
+        <DefaultVideoLayout
+          thumbnails="https://image.mux.com/VZtzUzGRv02OhRnZCxcNg49OilvolTqdnFLEqBsTwaxU/storyboard.vtt"
+          icons={defaultLayoutIcons}
+        />
+      </MediaPlayer>
+
       <h1>OAuth Google</h1>
       <div className="read-the-docs">
         {isAuthenticated ? (

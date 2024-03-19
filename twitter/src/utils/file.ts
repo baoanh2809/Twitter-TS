@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { Request, Response } from 'express'
 import { File } from 'formidable'
+import { nanoid } from 'nanoid'
 import { UPLOAD_IMAGE_TEMP_DIR, UPLOAD_VIDEO_DIR, UPLOAD_VIDEO_TEMP_DIR } from '@/constants/dir'
 
 export const initFolder = () => {
@@ -80,8 +81,12 @@ export const getNameFromFullName = (filename: string) => {
 
 export const handleUploadVideo = async (req: Request) => {
   const formidable = (await import('formidable')).default
+  const nanoId = (await import('nanoid')).nanoid
+  const idName = nanoId()
+  const folerPath = path.resolve(UPLOAD_VIDEO_DIR, idName)
+  fs.mkdirSync(folerPath)
   const form = formidable({
-    uploadDir: UPLOAD_VIDEO_DIR,
+    uploadDir: folerPath,
     maxFields: 1,
     // keepExtensions: true,
     maxFieldsSize: 300 * 1024,
@@ -91,6 +96,9 @@ export const handleUploadVideo = async (req: Request) => {
         form.emit('error' as any, new Error('File is not valid') as any)
       }
       return valid
+    },
+    filename: function () {
+      return idName
     }
   })
   return new Promise<File[]>((resolve, reject) => {
@@ -117,4 +125,17 @@ export const handleUploadVideo = async (req: Request) => {
 export const getExtension = (filename: string) => {
   const namearr = filename.split('.')
   return namearr[namearr.length - 1]
+}
+
+export const getFiles = (dir: string, files: string[] = []) => {
+  const fileList = fs.readdirSync(dir)
+  for (const file of fileList) {
+    const name = `${dir}/${file}`
+    if (fs.statSync(name).isDirectory()) {
+      getFiles(name, files)
+    } else {
+      files.push(name)
+    }
+  }
+  return files
 }

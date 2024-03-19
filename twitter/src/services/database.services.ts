@@ -10,6 +10,7 @@ import bookMark from '@/models/schemas/bookmarks.Schema'
 import like from '@/models/schemas/likes.Schema'
 import Conversation from '@/models/schemas/conversations.Schema'
 import { envConfig } from '@/constants/config'
+import VideoStatus from '@/models/schemas/videosStatus.Schema'
 
 const uri = `mongodb+srv://${envConfig.dbUserName}:${envConfig.dbPassword}@cluster0.brqve.mongodb.net/`
 class DatabaseService {
@@ -76,6 +77,10 @@ class DatabaseService {
 
   get followers(): Collection<Follower> {
     return this.db.collection(`${envConfig.dbFlolowersCollection}`)
+  }
+
+  get videoStatus(): Collection<VideoStatus> {
+    return this.db.collection(`${envConfig.dbVideoStatusCollection}`)
   }
 
   get tweets(): Collection<Tweet> {

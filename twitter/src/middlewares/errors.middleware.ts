@@ -15,6 +15,7 @@ export const defaultErrorHandler = (err: any, req: Request, res: Response, next:
       ) {
         return
       }
+      finalError[key] = err[key]
     })
     res.status(HTTP.INTERNAL_SERVER_ERROR).json({
       message: finalError.message,
