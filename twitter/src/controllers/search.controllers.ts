@@ -1,5 +1,5 @@
 import { MediaQuery } from '@/constants/enums'
-import { SearchQuery } from '@/models/requests/Search.requets'
+import { SearchQuery } from '@/models/requests/Search.requests'
 import { TokenPayload } from '@/models/requests/User.requests'
 import searchService from '@/services/search.services'
 import { NextFunction, Request, Response } from 'express'

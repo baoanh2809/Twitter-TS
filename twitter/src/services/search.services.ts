@@ -1,5 +1,5 @@
 import { MediaQuery, PeopleFollow, TweetType } from '@/constants/enums'
-import { SearchQuery } from '@/models/requests/Search.requets'
+import { SearchQuery } from '@/models/requests/Search.requests'
 import Tweet from '@/models/schemas/Tweet.schema'
 import databaseService from '@/services/database.services'
 import { ObjectId } from 'mongodb'

@@ -309,6 +309,7 @@ paths:
             schema:
               type: string
               format: binary
+              x-name: image
       responses:
         '200':
           description: successful operation
