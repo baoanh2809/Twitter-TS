@@ -1,8 +1,8 @@
 version: '3'
 services:
   twitter:
-    image: 'dev/twitter:v0'
+    image: 'dev/twitter:v1'
     ports:
-      - '4000:4000'
+      - '3000:3000'
     volumes:
       - '~/OneDrive\Desktop\Nodejs-TypeScript\Nodejs-TS-Twitter\Twitter\uploads:/app/uploads'

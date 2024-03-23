@@ -137,7 +137,6 @@ import { ParamsDictionary, Query } from 'express-serve-static-core'
  *          example: 50
  */
 
-
 /**
  * @swagger
  * components:
