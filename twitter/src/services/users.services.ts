@@ -25,7 +25,7 @@ class UserService {
       },
       privateKey: process.env.JWT_SECRET_ACCESS_TOKEN as string,
       option: {
-        expiresIn: process.env.ACCESS_TOKEN_EXPIRE_In
+        expiresIn: process.env.ACCESS_TOKEN_EXPIRE_IN
       }
     })
   }
@@ -50,7 +50,7 @@ class UserService {
       },
       privateKey: process.env.JWT_SECRET_REFRESH_TOKEN as string,
       option: {
-        expiresIn: process.env.REFRESH_TOKEN_EXPIRE_In
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRE_IN
       }
     })
   }
@@ -63,7 +63,7 @@ class UserService {
       },
       privateKey: process.env.JWT_SECRET_EMAIL_VERIFY_TOKEN as string,
       option: {
-        expiresIn: process.env.EMAIL_VERIFY_TOKEN_EXPIRE_In
+        expiresIn: process.env.EMAIL_VERIFY_TOKEN_EXPIRE_IN
       }
     })
   }
@@ -76,7 +76,7 @@ class UserService {
       },
       privateKey: process.env.JWT_SECRET_FORGOT_PASSWORD_VERIFY_TOKEN as string,
       option: {
-        expiresIn: process.env.FORGOT_PASSWORD_TOKEN_EXPIRE_In
+        expiresIn: process.env.FORGOT_PASSWORD_TOKEN_EXPIRE_IN
       }
     })
   }
