@@ -45,7 +45,7 @@ const swaggerOptions: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: 'https://tranbaoanh.io.vn/api-docs/'
+        url: 'https://tranbaoanh.io.vn'
       }
     ]
   },
