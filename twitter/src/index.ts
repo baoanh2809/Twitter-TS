@@ -45,7 +45,7 @@ const swaggerOptions: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:4000'
+        url: 'https://tranbaoanh.io.vn/api-docs/'
       }
     ]
   },
@@ -70,12 +70,12 @@ app.use(limiter)
 
 const httpServer = createServer(app)
 
-// app.use(helmet())
-// const corsOptions: CorsOptions = {
-//   origin: isProduction ? envConfig.clientURL : '*'
-// }
+app.use(helmet())
+const corsOptions: CorsOptions = {
+  origin: isProduction ? envConfig.clientURL : '*'
+}
 
-app.use(cors())
+app.use(cors(corsOptions))
 
 // Tạo folder upload
 initFolder()
