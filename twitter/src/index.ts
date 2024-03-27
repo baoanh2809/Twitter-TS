@@ -10,7 +10,6 @@ import helmet from 'helmet'
 import { rateLimit } from 'express-rate-limit'
 // import '@/utils/fake'
 // import '@/utils/s3'
-
 import { createServer } from 'http'
 import initSocket from '@/utils/socket'
 import YAML from 'yaml'
@@ -70,7 +69,14 @@ app.use(limiter)
 
 const httpServer = createServer(app)
 
-app.use(helmet())
+app.use(
+  helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: {
+      "img-src": ["'self'", "https: data:"]
+    }
+  })
+)
 const corsOptions: CorsOptions = {
   origin: isProduction ? envConfig.clientURL : '*'
 }
@@ -92,6 +98,9 @@ databaseService.connect().then(() => {
 
 app.use('/static', express.static(UPLOAD_IMAGE_DIR))
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecification))
+app.use('/profile', (req, res) => {
+  res.sendFile('/src/views/profile.html', { root: '.' })
+})
 app.use(defaultErrorHandler)
 initSocket(httpServer)
 const PORT = envConfig.port

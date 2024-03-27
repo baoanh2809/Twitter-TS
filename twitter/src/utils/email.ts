@@ -15,9 +15,6 @@ const sesClient = new SESClient({
 })
 
 const verifyEmailTemplate = fs.readFileSync(path.resolve('src/template/verify-email.html'), 'utf-8')
-const paymentTemplate = fs.readFileSync(path.resolve('src/template/payment.html'), 'utf-8')
-const tourdetailTemplate = fs.readFileSync(path.resolve('src/template/tourdetail.html'), 'utf-8')
-
 
 const createSendEmailCommand = ({
   fromAddress,

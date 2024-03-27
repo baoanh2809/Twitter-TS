@@ -196,3 +196,9 @@ export const refreshTokenController = async (
     result
   })
 }
+
+export const getProfileTemplate = async (req: Request, res: Response, next: NextFunction) => {
+  return res.json({
+    message: 'Hello'
+  })
+}
